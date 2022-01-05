@@ -1,0 +1,75 @@
+{
+    "stake_currency": "USDT",
+    "timeframe": "30m",
+    "stake_amount": "unlimited",
+    "max_open_trades": 10,
+    "exchange": {
+        "name": "kucoin",
+        "key": "",
+        "secret": "",
+        "password": "",
+        "ccxt_config": {
+            "enableRateLimit": true,
+            "timeout": 30000,
+            "ratelimit": 6339
+        }, 
+        "ccxt_async_config": {
+            "enableRateLimit": true,
+            "timeout": 30000,
+            "ratelimit": 6339
+        },
+        "pair_whitelist": [".*/USDT"],
+        "pair_blacklist": [
+            "USDC/USDT",
+            "KCS/.*",
+            ".*(3|3L|3S)/USDT",
+            "BNB/USDT",
+            "BTC/USDT", 
+            "ETH/USDT",
+            "ROSE/USDT",
+            "AVAX/USDT",
+            "LUNA/USDT"
+        ]
+    },
+    "pairlists": [
+	{
+	    "method": "StaticPairList"
+	}
+    ],
+    "_pairlists": [
+        {
+            "method": "VolumePairList",
+            "number_assets": 200,
+            "sort_key": "quoteVolume"
+        },
+        {
+            "method": "AgeFilter",
+            "min_days_listed": 7
+        },
+        {
+            "method": "SpreadFilter",
+            "max_spread_ratio": 0.006
+        },
+        {
+            "method": "VolatilityFilter",
+            "lookback_days": 5,
+            "min_volatility": 0.05,
+            "max_volatility": 0.75,
+            "refresh_period": 1800
+        },
+        {
+            "method": "ShuffleFilter"
+        },
+        {
+            "method": "RangeStabilityFilter",
+            "lookback_days": 3,
+            "min_rate_of_change": 0.1,
+            "refresh_period": 1800
+        },
+        {
+            "method": "VolumePairList",
+            "number_assets": 10,
+            "sort_key": "quoteVolume"
+        }
+    ]
+}
