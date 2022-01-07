@@ -41,10 +41,10 @@ class TVPairList(IPairList):
                  pairlist_pos: int) -> None:
         super().__init__(exchange, pairlistmanager, config, pairlistconfig, pairlist_pos)
 
-        self._granularity = self._pairlistconfig.get('granularity', '1h')
+        self._granularity = self._pairlistconfig.get('granularity', '1d')
         self._adx_threshold = self._pairlistconfig.get('adx_threshold', 25)
-        self._volatility_threshold = self._pairlistconfig.get('volatility_threshold', 13)
-        self._volume_threshold = self._pairlistconfig.get('volume_threshold', 200000)
+        self._volatility_threshold = self._pairlistconfig.get('volatility_threshold', 5)
+        self._volume_threshold = self._pairlistconfig.get('volume_threshold', 500000)
     
     @property
     def needstickers(self) -> bool:
@@ -104,7 +104,7 @@ class TVPairList(IPairList):
                 elif recommend > 0.5:
                     score += 5
                     rating = 'STRONG_BUY'
-                if (adx >= self._adx_threshold) and (adx_posi_di > adx_neg_di) and (adx_posi_di > adx):
+                if (adx >= self._adx_threshold) and ((adx_posi_di > adx_neg_di) or (adx_posi_di > adx)):
                     score += 1 
                 if volume >= self._volume_threshold:
                     score += 1
@@ -112,15 +112,15 @@ class TVPairList(IPairList):
                     score += 1
                 if volatility >= self._volatility_threshold:
                     score += 1
-                if 30 <= rsi > 20:
+                if 30 <= rsi > 10:
                     score += 1
-                if 20 < stoch_d <= 30:
+                if 10 < stoch_d <= 30:
                     score += 1
                 if stoch_k > stoch_d:
                     score += 1
                 if williams_r <= -30:
                     score += 1
-                if score >= 10:#
+                if score >= 8:#
                     winningcoins += 1
                     chosen_coin = re.sub(self._config['stake_currency'],f"/{self._config['stake_currency']}", ta.symbol)
                     formatted_ta.append(chosen_coin)
@@ -132,7 +132,7 @@ class TVPairList(IPairList):
         # print(f"TradingView Picks: {winningcoins} {formatted_ta}")
         #return self._whitelist_for_active_markets(
         #    self.verify_whitelist(formatted_ta, logger.info))
-        return formatted_ta
+        return formatted_ta[:self._pairlistconfig.get('number_assets', 10)]
     
     def filter_pairlist(self, pairlist: List[str], tickers: Dict) -> List[str]:
         """

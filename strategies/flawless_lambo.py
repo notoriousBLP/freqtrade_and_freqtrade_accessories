@@ -1121,6 +1121,11 @@ class flawless_lambo(IStrategy):
         dataframe['slowd'] = stoch_slow['slowd']
         dataframe['slowk'] = stoch_slow['slowk']
 
+        # Perc
+        dataframe['perc'] = ((dataframe['high'] - dataframe['low']) / dataframe['low']*100)
+        dataframe['avg3_perc'] = ta.EMA(dataframe['perc'], 3)
+        dataframe['perc_norm'] = (dataframe['perc'] - dataframe['perc'].rolling(50).min())/(dataframe['perc'].rolling(50).max()-dataframe['perc'].rolling(50).min())
+
         self.trailing_sell(metadata['pair'])
 
         return dataframe
@@ -1172,6 +1177,11 @@ class flawless_lambo(IStrategy):
         stoch_slow = ta.STOCH(dataframe)
         dataframe['slowd'] = stoch_slow['slowd']
         dataframe['slowk'] = stoch_slow['slowk']
+
+        # Perc
+        dataframe['perc'] = ((dataframe['high'] - dataframe['low']) / dataframe['low']*100)
+        dataframe['avg3_perc'] = ta.EMA(dataframe['perc'], 3)
+        dataframe['perc_norm'] = (dataframe['perc'] - dataframe['perc'].rolling(50).min())/(dataframe['perc'].rolling(50).max()-dataframe['perc'].rolling(50).min())
 
         self.trailing_sell(metadata['pair'])
 
