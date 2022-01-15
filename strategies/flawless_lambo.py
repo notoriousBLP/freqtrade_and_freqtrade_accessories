@@ -28,40 +28,30 @@ class flawless_lambo(IStrategy):
         return [
             {
                 "method": "MaxDrawdown",
-                "lookback_period": 120,
-                "trade_limit": 20,
-                "stop_duration": 120,
+                "lookback_period": 360,
+                "trade_limit": 1,
+                "stop_duration": 720,
                 "max_allowed_drawdown": 0.05
             },
             {
                 "method": "StoplossGuard",
-                "lookback_period": 1440,
+                "lookback_period": 4320,
                 "trade_limit": 1,
-                "stop_duration": 1440,
+                "stop_duration": 10080,
                 "only_per_pair": True
             },
             {
                 "method": "LowProfitPairs",
                 "lookback_period": 1440,
-                "trade_limit": 2,
-                "stop_duration": 3600,
-                "required_profit": 0.01
+                "trade_limit": 1,
+                "stop_duration": 1440,
+                "required_profit": 0.003
             }
         ]
 
     # Minimal ROI designed for the strategy.
     # This attribute will be overridden if the config file contains "minimal_roi".
     # ROI1 table:
-    '''
-    minimal_roi = {
-        "0": 0.0625,
-        "28": 0.05,
-        "76": 0.04,
-        "125": 0.03,
-        "240": 0.02,
-        "360": 0
-    }
-    '''
     
     minimal_roi = {
             "120": 0.30135315985130107,
@@ -794,57 +784,52 @@ class flawless_lambo(IStrategy):
             "3755": 0,
             "3900": -0.01,
             "3960": -0.02,
-            "4020": -0.03,
-            "4080": -0.04,
-            "4140": -0.05,
-            "4200": -0.06,
-            "4260": -0.07,
-            "4320": -0.08,
-            "4380": -0.09
-        }
+            "4020": -0.03
+    }
 
     # Optimal stoploss designed for the strategy.
     # This attribute will be overridden if the config file contains "stoploss".
     # use_custom_stoploss = True
-    stoploss = -0.10 #-0.10
+    stoploss = -1 #-0.10
 
     # Trailing stop:
-    trailing_stop = True
-    trailing_stop_positive = 0.01
-    trailing_stop_positive_offset = 0.03
+    trailing_stop = False
+    trailing_stop_positive = 0.006
+    trailing_stop_positive_offset = 0.019
     trailing_only_offset_is_reached = False
     process_only_new_candles = True
 
     # Number of candles the strategy requires before producing valid signals
-    startup_candle_count: int = 20 #30
+    startup_candle_count: int = 30 #30
 
     # Optimal timeframe for the strategy.
-    timeframe = '30m'
+    timeframe = '15m'
 
     # These values can be overridden in the "ask_strategy" section in the config.
     use_sell_signal = True
-    sell_profit_only = True
+    sell_profit_only = False
     # sell_profit_offset = 0.019
-    ignore_roi_if_buy_signal = True
+    ignore_roi_if_buy_signal = False
 
 
     # hyperopt params
-    sell_rsi = DecimalParameter(60, 100, default=73.9)
-    sell_williams = DecimalParameter(-30, 0, default=-20)
+    sell_rsi = DecimalParameter(60, 100, default=70)
+    sell_williams = DecimalParameter(-30, 0, default=-10)
 
     # trailing sell (borrowed from UziChanTB2)
     custom_info_trail_sell = dict()
     trailing_sell_order_enabled = True    
     # trailing_expire_seconds = 1800      #NOTE 5m timeframe
-    trailing_expire_seconds = 1800/5    #NOTE 1m timeframe
-    # trailing_expire_seconds = 1800*3    #NOTE 15m timeframe
+    # trailing_expire_seconds = 1800/5    #NOTE 1m timeframe
+    trailing_expire_seconds = 1800*3    #NOTE 15m timeframe
+    # trailing_expire_seconds = 1800*6
     trailing_sell_uptrend_enabled = True    
-    trailing_expire_seconds_uptrend = 90
+    trailing_expire_seconds_uptrend = 300
     min_uptrend_trailing_profit = 0.02
     debug_mode = True
-    trailing_sell_max_stop = 0.02   # stop trailing sell if current_price < starting_price * (1+trailing_buy_max_stop)
+    trailing_sell_max_stop = 0.01   # stop trailing sell if current_price < starting_price * (1+trailing_buy_max_stop)
     trailing_sell_max_sell = 0.000  # sell if price between downlimit (=max of serie (current_price * (1 + trailing_sell_offset())) and (start_price * 1+trailing_sell_max_sell))
-    abort_trailing_when_sell_signal_triggered = True
+    abort_trailing_when_sell_signal_triggered = False
 
     
     init_trailing_sell_dict = {
@@ -948,6 +933,10 @@ class flawless_lambo(IStrategy):
                         "color": "#bcd6c5",
                         "type": "line"
                     },
+                    "plus.di.slope": {
+                            "color": "#ffffff",
+                            "type": "line"
+                    },
                     "minus.di": {
                         "color": "#eb044c",
                         "type": "line"
@@ -1012,10 +1001,6 @@ class flawless_lambo(IStrategy):
             return 0
     
     def trailing_sell_offset(self, dataframe, pair: str, current_price: float):
-        # return rebound limit before a buy in % of initial price, function of current price
-        # return None to stop trailing buy (will start again at next buy signal)
-        # return 'forcebuy' to force immediate buy
-        # (example with 0.5%. initial price : 100 (uplimit is 100.5), 2nd price : 99 (no buy, uplimit updated to 99.5), 3price 98 (no buy uplimit updated to 98.5), 4th price 99 -> BUY
         current_trailing_sell_profit_ratio = self.current_trailing_sell_profit_ratio(pair, current_price)
         last_candle = dataframe.iloc[-1]
         adapt  = (last_candle['perc_norm']).round(5)
@@ -1064,11 +1049,11 @@ class flawless_lambo(IStrategy):
         # ------------------------------------
         
         # first check if dataprovider is available
-        if self.dp:
-            if self.dp.runmode.value in ('live', 'dry_run'):
-                ob = self.dp.orderbook(metadata['pair'], 1)
-                dataframe['best_bid'] = ob['bids'][0][0]
-                dataframe['best_ask'] = ob['asks'][0][0]
+        # if self.dp:
+        #    if self.dp.runmode.value in ('live', 'dry_run'):
+        #        ob = self.dp.orderbook(metadata['pair'], 1)
+        #        dataframe['best_bid'] = ob['bids'][0][0]
+        #        dataframe['best_ask'] = ob['asks'][0][0]
 
 
         # Bollinger!
@@ -1100,6 +1085,7 @@ class flawless_lambo(IStrategy):
         dataframe['adx'] = ta.ADX(dataframe)
         dataframe['plus.di'] = ta.PLUS_DI(dataframe)
         dataframe['minus.di'] = ta.MINUS_DI(dataframe)
+        dataframe['plus.di.slope'] = pta.momentum.slope(dataframe['plus.di'])
 
         # RSI
         dataframe['rsi'] = ta.RSI(dataframe)
@@ -1124,7 +1110,7 @@ class flawless_lambo(IStrategy):
         # Perc
         dataframe['perc'] = ((dataframe['high'] - dataframe['low']) / dataframe['low']*100)
         dataframe['avg3_perc'] = ta.EMA(dataframe['perc'], 3)
-        dataframe['perc_norm'] = (dataframe['perc'] - dataframe['perc'].rolling(50).min())/(dataframe['perc'].rolling(50).max()-dataframe['perc'].rolling(50).min())
+        dataframe['perc_norm'] = (dataframe['perc'] - dataframe['perc'].rolling(50).min())/(dataframe['perc'].rolling(50).max() - dataframe['perc'].rolling(50).min())
 
         self.trailing_sell(metadata['pair'])
 
@@ -1147,6 +1133,10 @@ class flawless_lambo(IStrategy):
         # vwma_period = 13
         # dataframe['vwma'] = ((dataframe["close"] * dataframe["volume"]).rolling(vwma_period).sum() / 
                     # dataframe['volume'].rolling(vwma_period).sum())
+
+        # VWAP
+        # vwap_period = 20
+        # dataframe['vwap'] = qtpylib.rolling_vwap(dataframe, window=vwap_period)
                 
         # VPCI
         dataframe['vpci'] = indicators.vpci(dataframe, period_long=14)
@@ -1158,6 +1148,7 @@ class flawless_lambo(IStrategy):
         dataframe['adx'] = ta.ADX(dataframe)
         dataframe['plus.di'] = ta.PLUS_DI(dataframe)
         dataframe['minus.di'] = ta.MINUS_DI(dataframe)
+        dataframe['plus.di.slope'] = pta.momentum.slope(dataframe['plus.di'])
 
         # RSI
         dataframe['rsi'] = ta.RSI(dataframe)
@@ -1269,6 +1260,8 @@ class flawless_lambo(IStrategy):
             (
             (dataframe['volume'] > 0) &
             (dataframe['OBVSlope'] > 0) &
+            (dataframe['plus.di.slope'] > 0) &
+            (dataframe['williamspercent'] < -66) &
             (qtpylib.crossed_above(dataframe['close'], dataframe['bb.lower']))
             ),'buy'] = 1
         
@@ -1279,10 +1272,10 @@ class flawless_lambo(IStrategy):
         dataframe.loc[
             (
                 (dataframe['volume'] > 0) &
-                (qtpylib.crossed_above(dataframe['close'], dataframe['bb.upper'])) &
-                (dataframe['vpci'] > 0) &
-                (dataframe['williamspercent'] > self.sell_williams.value) &
-                (dataframe['rsi'] > self.sell_rsi.value)
+                (dataframe['close'] > dataframe['bb.upper']) &
+                (dataframe['plus.di.slope'] < 0) &
+                (dataframe['williamspercent'] >= self.sell_williams.value) &
+                (dataframe['rsi'] >= self.sell_rsi.value)
             ),
             'sell'] = 1
 
@@ -1292,7 +1285,6 @@ class flawless_lambo(IStrategy):
             if (last_candle['sell'] != 0):
                 if not trailing_sell['trailing_sell_order_started']:
                     open_trades = Trade.get_trades([Trade.pair == metadata['pair'], Trade.is_open.is_(True), ]).all()
-                    #if not open_trades: 
                     if open_trades:
                         self.logger.info(f"Set 'allow_SELL_trailing' to True for {metadata['pair']} to start *SELL* trailing")
                         # self.custom_info_trail_buy[metadata['pair']]['trailing_buy']['allow_trailing'] = True
